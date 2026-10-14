@@ -17,13 +17,66 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /* 2) SCROLL REVEAL */
+  /* 2) SCROLL REVEAL — base stagger */
   $$("[data-stagger]").forEach((parent) => {
     const type = parent.dataset.stagger || "up";
     Array.from(parent.children).forEach((child, i) => {
       child.style.setProperty("--i", Math.min(i, 6));
       if (!child.hasAttribute("data-anim")) {
         child.setAttribute("data-anim", type);
+      }
+    });
+  });
+
+  /* 2b) EACH SECTION GETS ITS OWN ANIMATION
+     Left column  = what to animate
+     Right column = the animation name (styled in styles.css)
+     Change a name here to change that section's effect. */
+  const SECTION_FX = [
+    ["#problem .head > *",        "blur"],
+    ["#problem .pain",            "pop"],
+    ["#problem .callout",         "rise"],
+
+    ["#journey .head > *",        "blur"],
+    ["#journey .step",            "flip"],
+    ["#journey .center-line",     "up"],
+
+    ["#tried .head > *",          "blur"],
+    ["#tried .tried",             "flip"],
+
+    ["#cause .head > *",          "blur"],
+    ["#cause .sym",               "pop"],
+    ["#cause .root",              "rise"],
+    ["#cause .big-line",          "zoom"],
+
+    ["#method .head > *",         "blur"],
+    ["#method .mcard",            "rise"],
+
+    ["#takeaway .head > *",       "blur"],
+    ["#takeaway .take",           "left"],
+
+    ["#testimonials .head > *",   "blur"],
+    ["#testimonials .carousel",   "zoom"],
+
+    ["#coach .coach-photo",       "left"],
+    ["#coach .coach-copy > *",    "right"],
+
+    ["#fit .head > *",            "blur"],
+    ["#fit .fit-box.yes",         "left"],
+    ["#fit .fit-box.no",          "right"],
+
+    ["#application .head > *",    "blur"],
+    ["#application .apply",       "rise"],
+    ["#application .faq",         "up"],
+
+    ["#final .final-inner > *",   "pop"]
+  ];
+
+  SECTION_FX.forEach(([selector, type]) => {
+    $$(selector).forEach((el, i) => {
+      el.setAttribute("data-anim", type);
+      if (!el.style.getPropertyValue("--i")) {
+        el.style.setProperty("--i", Math.min(i, 8));
       }
     });
   });
@@ -74,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function onScroll() {
     const doc = document.documentElement;
-    const max = doc.scrollHeight - window.innerHeight;
+    const max = doc.scrollHeight - window.innerHeight - (window.innerWidth <= 760 ? 58 : 0);
 
     if (progress) {
       progress.style.transform =
@@ -146,7 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (videoId) {
       return {
         type: "iframe",
-        src: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=1&mute=1&playsinline=1&rel=0`
+        src: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=1&playsinline=1&rel=0`
       };
     }
 
@@ -157,7 +210,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (match) {
         return {
           type: "iframe",
-          src: `https://player.vimeo.com/video/${match[1]}?autoplay=1&muted=1&playsinline=1`
+          src: `https://player.vimeo.com/video/${match[1]}?autoplay=1&playsinline=1`
         };
       }
     }
@@ -185,7 +238,6 @@ document.addEventListener("DOMContentLoaded", () => {
       video.src = source.src;
       video.controls = true;
       video.autoplay = true;
-      video.muted = true;
       video.playsInline = true;
       video.preload = "metadata";
       video.setAttribute("aria-label", title);
@@ -216,12 +268,25 @@ document.addEventListener("DOMContentLoaded", () => {
     frame.appendChild(iframe);
   }
 
-  /* VSL — direct player, no custom thumbnail */
+  /* VSL — the poster stays until the viewer clicks.
+     This is what stops the YouTube "Error 153" screen. */
   const vslFrame = $("#vslFrame");
+  const vslPlay = $("#vslPlay");
 
-  if (vslFrame) {
-    const vslUrl = VIDEO_URL || vslFrame.dataset.videoUrl || "";
-    mountVideo(vslFrame, vslUrl, "Strategy video");
+  if (vslFrame && vslPlay) {
+    const vslUrl = (VIDEO_URL || vslFrame.dataset.videoUrl || "").trim();
+    const isPlaceholder = /YOUR_[A-Z_]*ID/i.test(vslUrl);
+    const isReady = !isPlaceholder && !!getVideoSource(vslUrl);
+
+    if (isReady) {
+      vslPlay.addEventListener("click", () => {
+        mountVideo(vslFrame, vslUrl, "Strategy video");
+      }, { once: true });
+    } else {
+      vslPlay.addEventListener("click", () => {
+        console.warn("Add your real video link to VIDEO_URL at the top of script.js");
+      });
+    }
   }
 
   /* 5) TESTIMONIAL CAROUSEL */
@@ -392,17 +457,12 @@ document.addEventListener("DOMContentLoaded", () => {
   /* 7) STICKY MOBILE CTA */
   const sticky = $("#stickyCta");
   const hero = $("#hero");
-  const application = $("#application");
-  const finalSection = $("#final");
 
   if (sticky && hero && "IntersectionObserver" in window) {
-    const state = { hero: true, app: false, final: false };
+    const state = { hero: true };
 
     const update = () => {
-      sticky.classList.toggle(
-        "show",
-        !state.hero && !state.app && !state.final
-      );
+      sticky.classList.toggle("show", !state.hero);
     };
 
     const watch = (element, key) => {
@@ -415,8 +475,8 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     watch(hero, "hero");
-    watch(application, "app");
-    watch(finalSection, "final");
+  } else if (sticky) {
+    sticky.classList.add("show");
   }
 
   /* 8) YEAR */
